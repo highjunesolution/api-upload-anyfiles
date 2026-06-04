@@ -107,7 +107,7 @@ function singleUploadMiddleware(type) {
   return (req, res, next) => {
     const upload = multer({
       storage,
-      limits: { fileSize: DEFAULT_MAX_SIZE },
+      limits: { fileSize: DEFAULT_MAX_SIZE, files: DEFAULT_MAX_FILES },
       fileFilter: makeFileFilter(type),
     }).single("file");
 

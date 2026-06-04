@@ -98,8 +98,8 @@ const storage = multer.diskStorage({
       cb(err);
     }
   },
-  filename: (_req, file, cb) => {
-    cb(null, generateFilename(file.originalname));
+  filename: (req, file, cb) => {
+    cb(null, req.body.filename ? req.body.filename : generateFilename(file.originalname));
   },
 });
 

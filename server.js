@@ -9,7 +9,15 @@ const cors = require("cors");
 const morgan = require("morgan");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan("dev"));
+morgan.token("server-time", () => {
+  return new Date().toLocaleString("sv-SE", {
+    timeZone: "Asia/Bangkok",
+  });
+});
+
+app.use(
+  morgan(":server-time :remote-addr :method :url :status :response-time ms"),
+);
 app.use(
   cors({
     origin: "*",

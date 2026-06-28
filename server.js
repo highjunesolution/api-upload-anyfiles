@@ -6,18 +6,17 @@ const PORT = 3000;
 
 // Step 4 Use Middleware
 const cors = require("cors");
-const morgan = require("morgan");
+const {
+  morganLogger,
+  morganConsole,
+} = require("./src/middlewares/morgan.middleware");
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-morgan.token("server-time", () => {
-  return new Date().toLocaleString("sv-SE", {
-    timeZone: "Asia/Bangkok",
-  });
-});
 
-app.use(
-  morgan(":server-time :remote-addr :method :url :status :response-time ms"),
-);
+app.use(morganConsole);
+app.use(morganLogger);
+
 app.use(
   cors({
     origin: "*",

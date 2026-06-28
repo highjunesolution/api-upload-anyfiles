@@ -2,8 +2,10 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const logger = require("../utils/logger.util");
 
-const DEFAULT_MAX_SIZE = Number(process.env.DEFAULT_MAX_SIZE) * 1024 * 1024 || 5 * 1024 * 1024;
+const DEFAULT_MAX_SIZE =
+  Number(process.env.DEFAULT_MAX_SIZE) * 1024 * 1024 || 5 * 1024 * 1024;
 const DEFAULT_MAX_FILES = Number(process.env.DEFAULT_MAX_FILES) || 10;
 const ALLOWED_EXT = {
   image: [".jpg", ".jpeg", ".png", ".gif", ".webp"],
@@ -31,33 +33,47 @@ function makeFileFilter(type) {
     const ext = path.extname(file.originalname).toLowerCase();
     const allowed = ALLOWED_EXT[type] || [];
     if (!allowed.includes(ext)) {
-      return cb(
-        new Error("นามสกุลไฟล์ไม่ถูกต้อง")
-      );
+      return cb(new Error("นามสกุลไฟล์ไม่ถูกต้อง"));
     }
     cb(null, true);
   };
 }
 
-function handleMulterError(err, res, next) {
+function handleMulterError(err, req, res, next) {
   if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE")
+    if (err.code === "LIMIT_FILE_SIZE") {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} File size over ${DEFAULT_MAX_SIZE / 1024 / 1024} MB`,
+      );
       return res.status(400).json({
         success: false,
         message: `ไฟล์ใหญ่เกิน ${DEFAULT_MAX_SIZE / 1024 / 1024} MB`,
       });
+    }
 
-    if (err.code === "LIMIT_FILE_COUNT")
+    if (err.code === "LIMIT_FILE_COUNT") {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} File count over ${DEFAULT_MAX_FILES} per request`,
+      );
       return res.status(400).json({
         success: false,
         message: `อัปโหลดได้สูงสุด ${DEFAULT_MAX_FILES} ไฟล์ต่อครั้ง`,
       });
+    }
 
-    if (err.code === "LIMIT_UNEXPECTED_FILE")
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} field name is invalid, request (field: file) name`,
+      );
       return res.status(400).json({
         success: false,
-        message: `นามสกุลไฟล์ไม่ถูกต้อง`,
+        message: `กรุณาอัปโหลดไฟล์ด้วย field ชื่อ file และครั้งละ 1 ไฟล์`,
       });
+    }
+
+    logger.error(
+      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} ${err.message}`,
+    );
 
     return res.status(400).json({
       success: false,
@@ -65,11 +81,15 @@ function handleMulterError(err, res, next) {
     });
   }
 
-  if (err)
+  if (err) {
+    logger.error(
+      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} ${err.message}`,
+    );
     return res.status(err.statusCode || 400).json({
       success: false,
       message: err.message,
     });
+  }
 
   return next(err);
 }
@@ -99,7 +119,10 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    cb(null, req.body.newName ? req.body.newName : generateFilename(file.originalname));
+    cb(
+      null,
+      req.body.newName ? path.basename(req.body.newName) : generateFilename(file.originalname),
+    );
   },
 });
 
@@ -112,13 +135,17 @@ function singleUploadMiddleware(type) {
     }).single("file");
 
     upload(req, res, (err) => {
-      if (err) return handleMulterError(err, res, next);
+      if (err) return handleMulterError(err, req, res, next);
 
-      if (!req.file)
+      if (!req.file) {
+        logger.error(
+          `${req.ip} ${req.method} ${req.originalUrl} File is required, not found file for upload`,
+        );
         return res.status(400).json({
           success: false,
           message: "ไม่พบไฟล์ที่อัปโหลด",
         });
+      }
 
       req.fileType = type;
       next();

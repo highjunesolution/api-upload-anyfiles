@@ -1,45 +1,50 @@
 # Upload Any Files API
 
-REST API สำหรับอัปโหลดไฟล์หลายประเภทด้วย Express และ Multer โดยแยก endpoint ตามชนิดไฟล์ เช่น image, PDF, Excel, document และ archive
+REST API สำหรับอัปโหลดและลบไฟล์ด้วย Express และ Multer โดยแยก endpoint ตามประเภทไฟล์ เช่น image, PDF, Excel, document และ archive
+
+เหมาะสำหรับใช้งานแบบ local หรือ internal API ที่มีการกำหนดรูปแบบ request ชัดเจน
 
 ## Tech Stack
 
-- Node.js
-- Express
-- Multer
-- CORS
-- Morgan
-- Dotenv
+| Tool | Usage |
+| --- | --- |
+| Node.js | Runtime |
+| Express | HTTP server และ routing |
+| Multer | รับไฟล์แบบ `multipart/form-data` |
+| Morgan | Access log |
+| Winston | App และ error log |
+| CORS | เปิดการเรียกใช้งานข้าม origin |
+| Dotenv | โหลดค่า environment |
 
-## การติดตั้ง
+## Installation
 
 ```bash
 npm install
 ```
 
-## การตั้งค่า Environment
+## Environment
 
-สร้างไฟล์ `.env` ที่ root ของโปรเจกต์ แล้วกำหนดค่าตามต้องการ
+สร้างไฟล์ `.env` ที่ root project หรือคัดลอกจาก `.env.example`
 
 ```env
+PORT=3000
 DEFAULT_MAX_SIZE=5
 DEFAULT_MAX_FILES=10
 ```
 
-| ตัวแปร | ความหมาย | ค่าเริ่มต้น |
+| Variable | Description | Default |
 | --- | --- | --- |
+| `PORT` | มีใน `.env.example` แต่โค้ดปัจจุบันยังใช้ `3000` จาก `server.js` | `3000` |
 | `DEFAULT_MAX_SIZE` | ขนาดไฟล์สูงสุด หน่วยเป็น MB | `5` |
-| `DEFAULT_MAX_FILES` | จำนวนไฟล์สูงสุดที่เตรียมไว้ใน config | `10` |
+| `DEFAULT_MAX_FILES` | ค่าจำนวนไฟล์สูงสุดใน config แต่ endpoint ปัจจุบันรับครั้งละ 1 ไฟล์ | `10` |
 
-หมายเหตุ: endpoint ปัจจุบันรับอัปโหลดครั้งละ 1 ไฟล์ผ่าน field ชื่อ `file`
-
-## การรันเซิร์ฟเวอร์
+## Run
 
 ```bash
 npm start
 ```
 
-เซิร์ฟเวอร์จะรันที่:
+Server จะรันที่:
 
 ```text
 http://localhost:3000
@@ -51,100 +56,73 @@ Base API URL:
 http://localhost:3000/api
 ```
 
-## โครงสร้างโปรเจกต์
+## Project Structure
 
 ```text
 .
-├── server.js
-├── src
-│   ├── controllers
-│   │   └── upload.controller.js
-│   ├── middlewares
-│   │   └── multer.middleware.js
-│   └── routes
-│       └── upload.route.js
-└── package.json
+|-- server.js
+|-- package.json
+|-- src
+|   |-- controllers
+|   |   `-- upload.controller.js
+|   |-- middlewares
+|   |   |-- morgan.middleware.js
+|   |   `-- multer.middleware.js
+|   |-- routes
+|   |   `-- upload.route.js
+|   `-- utils
+|       `-- logger.util.js
+`-- logs
+    |-- access.log
+    |-- app.log
+    `-- error.log
 ```
 
-## Endpoints
+## Supported Upload Endpoints
 
-### Upload Image
+ทุก upload endpoint ใช้ field ไฟล์ชื่อ `file` และรับครั้งละ 1 ไฟล์
 
-```http
-POST /api/upload/image
-```
-
-รองรับไฟล์:
-
-```text
-.jpg, .jpeg, .png, .gif, .webp
-```
-
-### Upload PDF
-
-```http
-POST /api/upload/pdf
-```
-
-รองรับไฟล์:
-
-```text
-.pdf
-```
-
-### Upload Excel
-
-```http
-POST /api/upload/excel
-```
-
-รองรับไฟล์:
-
-```text
-.xls, .xlsx, .csv
-```
-
-### Upload Document
-
-```http
-POST /api/upload/document
-```
-
-รองรับไฟล์:
-
-```text
-.doc, .docx, .txt
-```
-
-### Upload Archive
-
-```http
-POST /api/upload/archive
-```
-
-รองรับไฟล์:
-
-```text
-.zip, .rar
-```
+| Endpoint | Allowed Extensions |
+| --- | --- |
+| `POST /api/upload/image` | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp` |
+| `POST /api/upload/pdf` | `.pdf` |
+| `POST /api/upload/excel` | `.xls`, `.xlsx`, `.csv` |
+| `POST /api/upload/document` | `.doc`, `.docx`, `.txt` |
+| `POST /api/upload/archive` | `.zip`, `.rar` |
 
 ## Upload Request
 
-ทุก upload endpoint ใช้ `multipart/form-data`
+Content type:
+
+```text
+multipart/form-data
+```
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `file` | File | Yes | ไฟล์ที่ต้องการอัปโหลด |
 | `dest` | String | Yes | path ปลายทางสำหรับเก็บไฟล์ |
+| `file` | File | Yes | ไฟล์ที่ต้องการอัปโหลด ต้องใช้ field ชื่อ `file` |
+| `newName` | String | No | ชื่อไฟล์ใหม่ ถ้าไม่ส่ง ระบบจะ generate ให้อัตโนมัติ |
 
-ถ้า `dest` เป็น relative path ระบบจะ resolve จากโฟลเดอร์ `src/middlewares` ตาม implementation ปัจจุบัน แนะนำให้ใช้ absolute path หากต้องการกำหนดตำแหน่งเก็บไฟล์ให้ชัดเจน
+สำคัญ: ให้ส่ง field `dest` ก่อน `file` เพราะ Multer ต้องใช้ `dest` ตอนเลือก destination สำหรับบันทึกไฟล์
+
+ถ้า `dest` เป็น relative path ระบบจะ resolve จากโฟลเดอร์ `src/middlewares` ตาม implementation ปัจจุบัน สำหรับการใช้งานให้ชัดเจน แนะนำให้ส่ง absolute path
 
 ตัวอย่าง:
 
 ```bash
 curl -X POST http://localhost:3000/api/upload/image \
-  -F "file=@./sample.png" \
-  -F "dest=D:/playground/lab14-upload-anyfiles/uploads/images"
+  -F "dest=D:/test/images" \
+  -F "file=@./sample.png"
+```
+
+ตัวอย่างกำหนดชื่อไฟล์เอง:
+
+```bash
+curl -X POST http://localhost:3000/api/upload/pdf \
+  -F "dest=D:/test/pdf" \
+  -F "newName=my-document.pdf" \
+  -F "file=@./document.pdf"
 ```
 
 Response สำเร็จ:
@@ -158,9 +136,9 @@ Response สำเร็จ:
     "originalname": "sample.png",
     "encoding": "7bit",
     "mimetype": "image/png",
-    "destination": "D:/playground/lab14-upload-anyfiles/uploads/images",
+    "destination": "D:/test/images",
     "filename": "20260601-140500123-a1b2c3d4e5f6a7b8.png",
-    "path": "D:/playground/lab14-upload-anyfiles/uploads/images/20260601-140500123-a1b2c3d4e5f6a7b8.png",
+    "path": "D:/test/images/20260601-140500123-a1b2c3d4e5f6a7b8.png",
     "size": 12345
   }
 }
@@ -172,7 +150,11 @@ Response สำเร็จ:
 POST /api/remove/file
 ```
 
-ใช้ `application/json`
+Content type:
+
+```text
+application/json
+```
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -184,7 +166,7 @@ POST /api/remove/file
 ```bash
 curl -X POST http://localhost:3000/api/remove/file \
   -H "Content-Type: application/json" \
-  -d "{\"filename\":\"20260601-140500123-a1b2c3d4e5f6a7b8.png\",\"dest\":\"D:/playground/lab14-upload-anyfiles/uploads/images\"}"
+  -d "{\"filename\":\"20260601-140500123-a1b2c3d4e5f6a7b8.png\",\"dest\":\"D:/test/images\"}"
 ```
 
 Response สำเร็จ:
@@ -195,6 +177,22 @@ Response สำเร็จ:
   "message": "ลบไฟล์สำเร็จแล้วเรียบร้อย!"
 }
 ```
+
+## File Naming
+
+ถ้าไม่ส่ง `newName` ระบบจะ generate ชื่อไฟล์ตามรูปแบบนี้:
+
+```text
+YYYYMMDD-HHmmssSSS-randomhex.ext
+```
+
+ตัวอย่าง:
+
+```text
+20260601-140500123-a1b2c3d4e5f6a7b8.png
+```
+
+ถ้าส่ง `newName` ระบบจะใช้ชื่อที่ส่งมา โดยตัด path ออกด้วย `path.basename()` ดังนั้นควรใส่นามสกุลไฟล์ให้ครบ เช่น `report.pdf`
 
 ## Error Response
 
@@ -211,20 +209,31 @@ Response สำเร็จ:
 
 - ไม่ส่ง field `file`
 - ไม่ส่ง `dest`
+- ส่ง field ไฟล์ชื่ออื่นที่ไม่ใช่ `file`
+- ส่งไฟล์มากกว่า 1 ไฟล์ต่อ request
 - นามสกุลไฟล์ไม่ตรงกับ endpoint
 - ขนาดไฟล์เกิน `DEFAULT_MAX_SIZE`
 - ลบไฟล์ที่ไม่มีอยู่จริง
 
-## Naming ของไฟล์ที่อัปโหลด
+## Logs
 
-ระบบจะเปลี่ยนชื่อไฟล์อัตโนมัติเป็นรูปแบบ:
+ระบบเขียน log ไว้ในโฟลเดอร์ `logs`
+
+| File | Description |
+| --- | --- |
+| `logs/access.log` | request log จาก Morgan |
+| `logs/app.log` | application log จาก Winston |
+| `logs/error.log` | error log จาก Winston |
+
+ตัวอย่าง access log:
 
 ```text
-YYYYMMDD-HHmmssSSS-randomhex.ext
+2026-06-28 17:20:26 ::1 POST /api/remove/file 200 1.875 ms
 ```
 
-ตัวอย่าง:
+## Notes
 
-```text
-20260601-140500123-a1b2c3d4e5f6a7b8.png
-```
+- API นี้ออกแบบสำหรับ local/internal usage ตาม scope ปัจจุบัน
+- การตรวจประเภทไฟล์ใช้ extension จากชื่อไฟล์
+- `dest` ถูกกำหนดจาก request body ตามกฎการใช้งานของ API นี้
+- โฟลเดอร์ `logs`, `node_modules`, `.env` และ upload folder ถูก ignore จาก git ผ่าน `.gitignore`

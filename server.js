@@ -11,17 +11,17 @@ const {
   morganConsole,
 } = require("./src/middlewares/morgan.middleware");
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.use(morganConsole);
-app.use(morganLogger);
-
 app.use(
   cors({
     origin: "*",
   }),
 );
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(morganConsole);
+app.use(morganLogger);
 
 // Step 3 Routing
 const fs = require("fs");

@@ -32,14 +32,18 @@ exports.upload = (req, res) => {
 };
 
 exports.remove = async (req, res) => {
-  let filePath = ""
+  let filePath = "";
   try {
     const { filename, dest } = req.body;
-    if (!filename || !dest)
+    if (!filename || !dest) {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} Delete Failed, filename/path is required`,
+      );
       return res.status(400).json({
         success: false,
         message: "โปรดระบุชื่อไฟล์หรือตำแหน่งของไฟล์",
       });
+    }
 
     filePath = path.join(dest, filename);
     await fs.promises.unlink(filePath);
@@ -56,22 +60,29 @@ exports.remove = async (req, res) => {
     console.log(err.code || err.name);
     console.log(err.message);
 
-    logger.error(
-      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} \"${filePath}\" Delete Failed`,
-    );
-
     if (err.code === "ENOENT") {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} \"${filePath}\" Delete Failed, filename/path is invalid or can't found`,
+      );
       return res.status(400).json({
         success: false,
         message: "ไม่พบไฟล์",
       });
     }
 
-    if (err.name === "TypeError")
+    if (err.name === "TypeError") {
+      logger.error(
+        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} Delete Failed, filename/path is required`,
+      );
       return res.status(400).json({
         success: false,
         message: "โปรดระบุชื่อไฟล์หรือตำแหน่งของไฟล์",
       });
+    }
+
+    logger.error(
+      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} Delete Failed, API upload file error ${err.message}`,
+    );
 
     return res.status(500).json({
       success: false,

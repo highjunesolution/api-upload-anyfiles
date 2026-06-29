@@ -72,7 +72,7 @@ function handleMulterError(err, req, res, next) {
     }
 
     logger.error(
-      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} ${err.message}`,
+      `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} filename extension is invalid`,
     );
 
     return res.status(400).json({

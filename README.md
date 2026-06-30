@@ -56,8 +56,6 @@ Server จะรันที่:
 http://localhost:3000
 ```
 
-> หมายเหตุ: ถึง `.env.example` จะมี `PORT` แต่ implementation ปัจจุบันใน `server.js` ยัง hard-code เป็น `3000`
-
 ## Configuration
 
 | Variable | Description | Default |
@@ -83,8 +81,8 @@ npm install pm2@latest -g
 เตรียมโปรเจกต์:
 
 ```bash
-git clone <repository-url>
-cd lab14-upload-anyfiles
+git clone https://github.com/highjunesolution/api-upload-anyfiles.git
+cd api-upload-anyfiles
 npm ci --omit=dev
 ```
 

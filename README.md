@@ -128,7 +128,7 @@ pm2 save
 ใช้ workflow นี้เมื่อต้อง update code บน server:
 
 ```bash
-cd /path/to/lab14-upload-anyfiles
+cd /path/to/api-upload-anyfiles
 git status --short
 git pull
 npm ci --omit=dev

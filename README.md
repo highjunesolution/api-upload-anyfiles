@@ -1,5 +1,17 @@
 # Upload Any Files API
 
+<p align="center">
+  <img src="./src/assets/banner/banner-logo.png" alt="Upload Any Files API banner" width="360" style="border-radius: 16px;" />
+</p>
+
+<p align="center">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-runtime-339933?style=for-the-badge&logo=node.js&logoColor=white" />
+  <img alt="Express" src="https://img.shields.io/badge/Express-API-000000?style=for-the-badge&logo=express&logoColor=white" />
+  <img alt="Multer" src="https://img.shields.io/badge/Multer-upload-2563EB?style=for-the-badge" />
+  <img alt="Winston" src="https://img.shields.io/badge/Winston-logs-F59E0B?style=for-the-badge" />
+  <img alt="PM2" src="https://img.shields.io/badge/PM2-deploy-2B037A?style=for-the-badge&logo=pm2&logoColor=white" />
+</p>
+
 REST API สำหรับอัปโหลดและลบไฟล์ด้วย Express และ Multer โดยแยก endpoint ตามประเภทไฟล์ เช่น image, PDF, Excel, document และ archive
 
 เหมาะสำหรับใช้งานแบบ local/internal API ที่ต้องการรับไฟล์ผ่าน `multipart/form-data` พร้อม log การเรียกใช้งานและ application error แบบ rotate รายวัน
@@ -53,6 +65,107 @@ http://localhost:3000
 | `PORT` | มีใน `.env.example` แต่โค้ดปัจจุบันยังใช้ `3000` จาก `server.js` | `3000` |
 | `DEFAULT_MAX_SIZE` | ขนาดไฟล์สูงสุด หน่วยเป็น MB | `5` |
 | `DEFAULT_MAX_FILES` | ค่าจำนวนไฟล์สูงสุดใน config แต่ endpoint ปัจจุบันรับครั้งละ 1 ไฟล์ | `10` |
+
+## Deployment With PM2
+
+PM2 ใช้สำหรับรัน Node.js app เป็น background process, restart อัตโนมัติเมื่อ process ล้ม, ดู status/logs และทำให้ process กลับมาหลัง server reboot
+
+> สำหรับ production ให้รัน `server.js` โดยตรงผ่าน PM2 ไม่แนะนำให้ใช้ `pm2 start npm -- start` เพราะ `npm start` ของโปรเจกต์นี้ใช้ `nodemon`
+
+### First Deploy
+
+ติดตั้ง PM2 บน server:
+
+```bash
+npm install pm2@latest -g
+```
+
+เตรียมโปรเจกต์:
+
+```bash
+git clone <repository-url>
+cd lab14-upload-anyfiles
+npm ci --omit=dev
+```
+
+สร้าง `.env` และแก้ค่าตาม environment จริง:
+
+```bash
+cp .env.example .env
+```
+
+เริ่ม app ด้วย PM2:
+
+```bash
+pm2 start server.js --name upload-anyfiles-api
+```
+
+ตรวจสอบสถานะและ log:
+
+```bash
+pm2 status
+pm2 logs upload-anyfiles-api --lines 100
+```
+
+บันทึก process list:
+
+```bash
+pm2 save
+```
+
+ตั้งให้ PM2 start เองหลัง server reboot:
+
+```bash
+pm2 startup
+```
+
+หลังรัน `pm2 startup` ให้ copy command ที่ PM2 แสดงออกมาไปรันอีกครั้งตามที่ระบบแนะนำ แล้วจึงรัน:
+
+```bash
+pm2 save
+```
+
+### Update And Redeploy Workflow
+
+ใช้ workflow นี้เมื่อต้อง update code บน server:
+
+```bash
+cd /path/to/lab14-upload-anyfiles
+git status --short
+git pull
+npm ci --omit=dev
+pm2 restart upload-anyfiles-api --update-env
+pm2 status
+pm2 logs upload-anyfiles-api --lines 100
+```
+
+คำอธิบาย:
+
+| Step | Purpose |
+| --- | --- |
+| `git status --short` | เช็กว่ามี local change ค้างอยู่หรือไม่ก่อน pull |
+| `git pull` | ดึง code ล่าสุด |
+| `npm ci --omit=dev` | sync dependencies ตาม `package-lock.json` สำหรับ production |
+| `pm2 restart ... --update-env` | restart app และโหลด `.env` ใหม่ |
+| `pm2 status` | ตรวจว่า process กลับมา online |
+| `pm2 logs ...` | ดู error หลัง deploy |
+
+ถ้า update เฉพาะ source code และไม่ได้เปลี่ยน dependencies สามารถข้าม `npm ci --omit=dev` ได้ แต่ถ้า `package.json` หรือ `package-lock.json` เปลี่ยน ให้รันทุกครั้ง
+
+ถ้าเปลี่ยนชื่อ process, start command หรือเพิ่ม process ใหม่ ให้รัน `pm2 save` อีกครั้งหลัง deploy สำเร็จ
+
+### Useful PM2 Commands
+
+| Command | Description |
+| --- | --- |
+| `pm2 status` | ดู process ทั้งหมด |
+| `pm2 logs upload-anyfiles-api` | stream logs ของ app |
+| `pm2 logs upload-anyfiles-api --lines 100` | ดู logs ล่าสุด 100 บรรทัด |
+| `pm2 monit` | เปิด terminal dashboard |
+| `pm2 restart upload-anyfiles-api --update-env` | restart และโหลด environment ใหม่ |
+| `pm2 stop upload-anyfiles-api` | หยุด process |
+| `pm2 delete upload-anyfiles-api` | ลบ process ออกจาก PM2 |
+| `pm2 save` | บันทึก process list ปัจจุบัน |
 
 ## Project Structure
 

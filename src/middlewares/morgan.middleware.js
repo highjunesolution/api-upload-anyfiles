@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const morgan = require("morgan");
+const FileStreamRotator = require("file-stream-rotator");
 
 const logDir = path.join(__dirname, "../../logs");
 if (!fs.existsSync(logDir)) {
@@ -20,12 +21,15 @@ morgan.token("server-time", () =>
   }),
 );
 
-const accessLogStream = fs.createWriteStream(
-  path.join(__dirname, "../../logs/access.log"),
-  {
-    flags: "a",
-  },
-);
+const accessLogStream = FileStreamRotator.getStream({
+  filename: path.join(logDir, "%DATE%-access"),
+  extension: ".log",
+  frequency: "daily",
+  date_format: "YYYY_MM_DD",
+  size: "10m",
+  max_logs: "62d",
+  audit_file: path.join(logDir, ".access-audit.json"),
+});
 
 const morganLogger = morgan("custom", {
   stream: accessLogStream,

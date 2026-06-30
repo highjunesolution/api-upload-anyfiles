@@ -2,29 +2,29 @@
 
 REST API สำหรับอัปโหลดและลบไฟล์ด้วย Express และ Multer โดยแยก endpoint ตามประเภทไฟล์ เช่น image, PDF, Excel, document และ archive
 
-เหมาะสำหรับใช้งานแบบ local หรือ internal API ที่มีการกำหนดรูปแบบ request ชัดเจน
+เหมาะสำหรับใช้งานแบบ local/internal API ที่ต้องการรับไฟล์ผ่าน `multipart/form-data` พร้อม log การเรียกใช้งานและ application error แบบ rotate รายวัน
 
-## Tech Stack
+## Overview
 
-| Tool | Usage |
+| Area | Detail |
 | --- | --- |
-| Node.js | Runtime |
-| Express | HTTP server และ routing |
-| Multer | รับไฟล์แบบ `multipart/form-data` |
-| Morgan | Access log |
-| Winston | App และ error log |
-| CORS | เปิดการเรียกใช้งานข้าม origin |
-| Dotenv | โหลดค่า environment |
+| Runtime | Node.js |
+| Server | Express |
+| Upload parser | Multer |
+| Access log | Morgan + file-stream-rotator |
+| App/Error log | Winston + winston-daily-rotate-file |
+| Default base URL | `http://localhost:3000/api` |
+| Upload mode | 1 file ต่อ request |
 
-## Installation
+## Quick Start
+
+ติดตั้ง dependencies:
 
 ```bash
 npm install
 ```
 
-## Environment
-
-สร้างไฟล์ `.env` ที่ root project หรือคัดลอกจาก `.env.example`
+สร้างไฟล์ `.env` ที่ root project หรือคัดลอกจาก `.env.example`:
 
 ```env
 PORT=3000
@@ -32,13 +32,7 @@ DEFAULT_MAX_SIZE=5
 DEFAULT_MAX_FILES=10
 ```
 
-| Variable | Description | Default |
-| --- | --- | --- |
-| `PORT` | มีใน `.env.example` แต่โค้ดปัจจุบันยังใช้ `3000` จาก `server.js` | `3000` |
-| `DEFAULT_MAX_SIZE` | ขนาดไฟล์สูงสุด หน่วยเป็น MB | `5` |
-| `DEFAULT_MAX_FILES` | ค่าจำนวนไฟล์สูงสุดใน config แต่ endpoint ปัจจุบันรับครั้งละ 1 ไฟล์ | `10` |
-
-## Run
+เริ่ม server:
 
 ```bash
 npm start
@@ -50,11 +44,15 @@ Server จะรันที่:
 http://localhost:3000
 ```
 
-Base API URL:
+> หมายเหตุ: ถึง `.env.example` จะมี `PORT` แต่ implementation ปัจจุบันใน `server.js` ยัง hard-code เป็น `3000`
 
-```text
-http://localhost:3000/api
-```
+## Configuration
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `PORT` | มีใน `.env.example` แต่โค้ดปัจจุบันยังใช้ `3000` จาก `server.js` | `3000` |
+| `DEFAULT_MAX_SIZE` | ขนาดไฟล์สูงสุด หน่วยเป็น MB | `5` |
+| `DEFAULT_MAX_FILES` | ค่าจำนวนไฟล์สูงสุดใน config แต่ endpoint ปัจจุบันรับครั้งละ 1 ไฟล์ | `10` |
 
 ## Project Structure
 
@@ -73,24 +71,27 @@ http://localhost:3000/api
 |   `-- utils
 |       `-- logger.util.js
 `-- logs
-    |-- access.log
-    |-- app.log
-    `-- error.log
+    |-- YYYY_MM_DD-access.0.log
+    |-- YYYY_MM_DD-app.log
+    |-- YYYY_MM_DD-error.log
+    |-- .access-audit.json
+    |-- .app-audit.json
+    `-- .error-audit.json
 ```
 
-## Supported Upload Endpoints
+## Upload Endpoints
 
 ทุก upload endpoint ใช้ field ไฟล์ชื่อ `file` และรับครั้งละ 1 ไฟล์
 
-| Endpoint | Allowed Extensions |
-| --- | --- |
-| `POST /api/upload/image` | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp` |
-| `POST /api/upload/pdf` | `.pdf` |
-| `POST /api/upload/excel` | `.xls`, `.xlsx`, `.csv` |
-| `POST /api/upload/document` | `.doc`, `.docx`, `.txt` |
-| `POST /api/upload/archive` | `.zip`, `.rar` |
+| Endpoint | File type | Allowed extensions |
+| --- | --- | --- |
+| `POST /api/upload/image` | Image | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp` |
+| `POST /api/upload/pdf` | PDF | `.pdf` |
+| `POST /api/upload/excel` | Excel / CSV | `.xls`, `.xlsx`, `.csv` |
+| `POST /api/upload/document` | Document | `.doc`, `.docx`, `.txt` |
+| `POST /api/upload/archive` | Archive | `.zip`, `.rar` |
 
-## Upload Request
+### Upload Request
 
 Content type:
 
@@ -104,11 +105,13 @@ multipart/form-data
 | `file` | File | Yes | ไฟล์ที่ต้องการอัปโหลด ต้องใช้ field ชื่อ `file` |
 | `newName` | String | No | ชื่อไฟล์ใหม่ ถ้าไม่ส่ง ระบบจะ generate ให้อัตโนมัติ |
 
-สำคัญ: ให้ส่ง field `dest` ก่อน `file` เพราะ Multer ต้องใช้ `dest` ตอนเลือก destination สำหรับบันทึกไฟล์
+ข้อควรระวัง:
 
-ถ้า `dest` เป็น relative path ระบบจะ resolve จากโฟลเดอร์ `src/middlewares` ตาม implementation ปัจจุบัน สำหรับการใช้งานให้ชัดเจน แนะนำให้ส่ง absolute path
+- ส่ง field `dest` ก่อน `file` เพราะ Multer ต้องใช้ `dest` ตอนเลือก destination สำหรับบันทึกไฟล์
+- ถ้า `dest` เป็น relative path ระบบจะ resolve จากโฟลเดอร์ `src/middlewares` ตาม implementation ปัจจุบัน
+- สำหรับการใช้งานให้ชัดเจน แนะนำให้ส่ง `dest` เป็น absolute path
 
-ตัวอย่าง:
+ตัวอย่างอัปโหลด image:
 
 ```bash
 curl -X POST http://localhost:3000/api/upload/image \
@@ -194,7 +197,55 @@ YYYYMMDD-HHmmssSSS-randomhex.ext
 
 ถ้าส่ง `newName` ระบบจะใช้ชื่อที่ส่งมา โดยตัด path ออกด้วย `path.basename()` ดังนั้นควรใส่นามสกุลไฟล์ให้ครบ เช่น `report.pdf`
 
-## Error Response
+## Logs
+
+ระบบเขียน log ไว้ในโฟลเดอร์ `logs` และ rotate เป็นรายวัน
+
+### Log Files
+
+| File | Description |
+| --- | --- |
+| `logs/YYYY_MM_DD-access.0.log` | request log จาก Morgan |
+| `logs/YYYY_MM_DD-app.log` | application log จาก Winston |
+| `logs/YYYY_MM_DD-error.log` | error log จาก Winston เฉพาะ level `error` |
+| `logs/.access-audit.json` | metadata ที่ `file-stream-rotator` ใช้ติดตาม access log |
+| `logs/.app-audit.json` | metadata ที่ `winston-daily-rotate-file` ใช้ติดตาม app log |
+| `logs/.error-audit.json` | metadata ที่ `winston-daily-rotate-file` ใช้ติดตาม error log |
+
+### Rotation Policy
+
+| Setting | Value |
+| --- | --- |
+| Rotation | Daily |
+| Max size | `10m` ต่อไฟล์ |
+| Retention | `62d` |
+| App log pattern | `YYYY_MM_DD-app.log` |
+| Error log pattern | `YYYY_MM_DD-error.log` |
+| Access log pattern | `YYYY_MM_DD-access.N.log` |
+
+### Timestamp
+
+| Source | Timezone |
+| --- | --- |
+| Morgan access log | `Asia/Bangkok` |
+| Winston app/error log | timezone ของ server/process |
+
+ถ้าต้องการให้ Winston ใช้ timezone เดียวกับ Morgan ให้ปรับ timestamp formatter ใน `src/utils/logger.util.js`
+
+ตัวอย่าง access log:
+
+```text
+2026-06-28 17:20:26 ::1 POST /api/remove/file 200 1.875 ms
+```
+
+ข้อควรระวังเกี่ยวกับ audit files:
+
+- ไฟล์ `.audit.json` ไม่ใช่ log แต่เป็น metadata สำหรับ rotation และ retention
+- ไม่ควรลบ `.audit.json` ระหว่างใช้งาน เพราะ rotation จะลืมว่าไฟล์เก่าใดต้องถูก cleanup
+- Retention จะลบเฉพาะ log files ที่อยู่ใน audit file และเก่ากว่า `62d`
+- `access` log มีเลข index เช่น `.0.log`, `.1.log` เพราะ `file-stream-rotator` ใช้ index เมื่อมีการจำกัดขนาดไฟล์
+
+## Error Cases
 
 ตัวอย่าง error response:
 
@@ -207,29 +258,16 @@ YYYYMMDD-HHmmssSSS-randomhex.ext
 
 กรณีที่อาจเกิด error:
 
-- ไม่ส่ง field `file`
-- ไม่ส่ง `dest`
-- ส่ง field ไฟล์ชื่ออื่นที่ไม่ใช่ `file`
-- ส่งไฟล์มากกว่า 1 ไฟล์ต่อ request
-- นามสกุลไฟล์ไม่ตรงกับ endpoint
-- ขนาดไฟล์เกิน `DEFAULT_MAX_SIZE`
-- ลบไฟล์ที่ไม่มีอยู่จริง
-
-## Logs
-
-ระบบเขียน log ไว้ในโฟลเดอร์ `logs`
-
-| File | Description |
+| Case | Description |
 | --- | --- |
-| `logs/access.log` | request log จาก Morgan |
-| `logs/app.log` | application log จาก Winston |
-| `logs/error.log` | error log จาก Winston |
-
-ตัวอย่าง access log:
-
-```text
-2026-06-28 17:20:26 ::1 POST /api/remove/file 200 1.875 ms
-```
+| Missing file | ไม่ส่ง field `file` |
+| Missing destination | ไม่ส่ง `dest` |
+| Invalid field name | ส่ง field ไฟล์ชื่ออื่นที่ไม่ใช่ `file` |
+| Too many files | ส่งไฟล์มากกว่า 1 ไฟล์ต่อ request |
+| Invalid extension | นามสกุลไฟล์ไม่ตรงกับ endpoint |
+| File too large | ขนาดไฟล์เกิน `DEFAULT_MAX_SIZE` |
+| File not found | ลบไฟล์ที่ไม่มีอยู่จริง |
+| Request aborted | client ปิด/cancel request ระหว่าง upload |
 
 ## Notes
 

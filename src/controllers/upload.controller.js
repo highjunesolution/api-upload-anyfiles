@@ -7,7 +7,7 @@ exports.upload = (req, res) => {
     const { file } = req;
 
     logger.info(
-      `${req.ip} ${req.method} ${req.originalUrl} 201 \"${file.originalname}\" -> \"${file.filename}\" Uploaded Successfully`,
+      `${req.ip} ${req.method} ${req.originalUrl} 201 \"${file.originalname}\" -> \"${file.path}\" Uploaded Successfully`,
     );
 
     return res.status(201).json({
@@ -36,8 +36,8 @@ exports.remove = async (req, res) => {
   try {
     const { filename, dest } = req.body;
     if (!filename || !dest) {
-      logger.error(
-        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} Delete Failed, filename/path is required`,
+      logger.warn(
+        `${req.ip} ${req.method} ${req.originalUrl} Delete Failed, filename/path is required`,
       );
       return res.status(400).json({
         success: false,
@@ -61,12 +61,12 @@ exports.remove = async (req, res) => {
     console.log(err.message);
 
     if (err.code === "ENOENT") {
-      logger.error(
-        `${req.ip} ${req.method} ${req.originalUrl} ${err.code ?? err.name} \"${filePath}\" Delete Failed, filename/path is invalid or can't found`,
+      logger.warn(
+        `${req.ip} ${req.method} ${req.originalUrl} 200 \"${filePath}\"Delete skipped, file already missing`,
       );
-      return res.status(400).json({
+      return res.status(200).json({
         success: false,
-        message: "ไม่พบไฟล์",
+        message: "ไฟล์ไม่มีอยู่แล้ว",
       });
     }
 
